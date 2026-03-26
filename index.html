@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>食事記録 - サンロくんのほけんしつ</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#f5f5f4;font-family:sans-serif;}
+iframe{width:100%;height:100vh;border:none;}
+.loading{display:flex;align-items:center;justify-content:center;height:100vh;font-size:18px;color:#666;}
+</style>
+</head>
+<body>
+<div class="loading" id="loading">🔄 読み込み中...</div>
+<iframe id="app" style="display:none;"></iframe>
+<script>
+var LIFF_ID='2009608282-IAzNrGIA';
+var GAS_URL='https://script.google.com/macros/s/AKfycbwqJPueCoeMtpY8WcCAHQjYXIROi8VAaqsbZmuf2iUQ65MG6teaJOC2CwZiGrUNlsd6/exec';
+
+liff.init({liffId:LIFF_ID}).then(function(){
+  return liff.getProfile();
+}).then(function(profile){
+  var userId=profile.userId;
+  var iframe=document.getElementById('app');
+  iframe.src=GAS_URL+'?page=records&userId='+userId;
+  iframe.style.display='block';
+  document.getElementById('loading').style.display='none';
+}).catch(function(err){
+  document.getElementById('loading').textContent='エラー: LINEから開いてください';
+});
+</script>
+</body>
+</html>

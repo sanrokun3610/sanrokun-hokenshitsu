@@ -23,8 +23,6 @@ iframe{width:100%;height:100vh;border:none;display:none;}
 <script>
 var LIFF_ID='2009608282-IAzNrGIA';
 var GAS_URL='https://script.google.com/macros/s/AKfycbwqJPueCoeMtpY8WcCAHQjYXIROi8VAaqsbZmuf2iUQ65MG6teaJOC2CwZiGrUNlsd6/exec';
-
-// URLパラメータからtabを取得
 var params=new URLSearchParams(window.location.search);
 var tab=params.get('tab')||'records';
 
@@ -32,15 +30,14 @@ liff.init({liffId:LIFF_ID}).then(function(){
   return liff.getProfile();
 }).then(function(profile){
   var iframe=document.getElementById('app');
-  iframe.src=GAS_URL+'?page=records&userId='+profile.userId+'&tab='+tab;
+  iframe.src=GAS_URL+'?page='+tab+'&userId='+profile.userId;
   iframe.style.display='block';
   document.getElementById('loading').style.display='none';
 }).catch(function(err){
-  // LIFF外からのアクセス
   var userId=params.get('userId');
   if(userId){
     var iframe=document.getElementById('app');
-    iframe.src=GAS_URL+'?page=records&userId='+userId+'&tab='+tab;
+    iframe.src=GAS_URL+'?page='+tab+'&userId='+userId;
     iframe.style.display='block';
     document.getElementById('loading').style.display='none';
   }else{

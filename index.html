@@ -33,7 +33,7 @@ iframe{width:100%;height:100vh;border:none;display:none;}
 .status{text-align:center;font-size:13px;color:#666;margin:8px 0;}
 .divider{border:none;border-top:1px solid #e5e5e5;margin:16px 0;}
 .debug{margin-top:8px;padding:6px;background:#f0f0f0;border-radius:4px;font-size:10px;color:#888;word-break:break-all;}
-#fileInput,#saveFrame{display:none;}
+#fileInput{display:none;}
 </style>
 </head>
 <body>
@@ -42,7 +42,6 @@ iframe{width:100%;height:100vh;border:none;display:none;}
 <div>読み込み中...</div>
 </div>
 <iframe id="app"></iframe>
-<iframe id="saveFrame" name="saveFrame"></iframe>
 <div class="scan-page" id="scanPage">
 <div class="scan-card">
 <div class="scan-icon">💳</div>
@@ -71,7 +70,7 @@ iframe{width:100%;height:100vh;border:none;display:none;}
 </div>
 
 <div class="error-box" id="errorBox"></div>
-<div class="debug" id="dbg"></div>
+<div class="debug" id="dbg">待機中</div>
 
 <div class="result-box" id="resultBox">
 <p>✅ 登録完了！</p>
@@ -90,15 +89,15 @@ var scanner=null;
 var dbg=document.getElementById('dbg');
 
 liff.init({liffId:LIFF_ID}).then(function(){
-  dbg.textContent='LIFF OK...';
+  dbg.textContent='LIFF初期化OK';
   return liff.getProfile();
 }).then(function(profile){
   globalUserId=profile.userId;
-  dbg.textContent='userId: '+profile.userId.substring(0,10)+'...';
+  dbg.textContent='userId取得OK';
   if(tab==='scan'){showScanPage();}
   else{showIframe(profile.userId);}
 }).catch(function(err){
-  dbg.textContent='LIFF err: '+JSON.stringify(err);
+  dbg.textContent='LIFFエラー:'+JSON.stringify(err);
   var userId=params.get('userId');
   if(userId){
     globalUserId=userId;
@@ -110,9 +109,8 @@ liff.init({liffId:LIFF_ID}).then(function(){
 });
 
 function showIframe(userId){
-  var iframe=document.getElementById('app');
-  iframe.src=GAS_URL+'?page='+tab+'&userId='+userId;
-  iframe.style.display='block';
+  document.getElementById('app').src=GAS_URL+'?page='+tab+'&userId='+userId;
+  document.getElementById('app').style.display='block';
   document.getElementById('loading').style.display='none';
 }
 
@@ -121,16 +119,10 @@ function showScanPage(){
   document.getElementById('scanPage').style.display='block';
 }
 
-function extractCode(code){
-  var digits=code.replace(/[^0-9]/g,'');
-  if(digits.length<4) return null;
-  return digits.substring(0,14);
-}
-
 document.getElementById('startBtn').addEventListener('click',function(){
-  var status=document.getElementById('status');
+  dbg.textContent='カメラ起動中...';
   document.getElementById('errorBox').style.display='none';
-  status.textContent='カメラ起動中...';
+  document.getElementById('status').textContent='カメラ起動中...';
   scanner=new Html5Qrcode('reader');
   scanner.start(
     {facingMode:'environment'},
@@ -143,22 +135,26 @@ document.getElementById('startBtn').addEventListener('click',function(){
       Html5QrcodeSupportedFormats.ITF,
     ]},
     function(decodedText){
-      status.textContent='読み取り成功！';
-      scanner.stop().then(function(){registerBarcode(decodedText);});
+      dbg.textContent='スキャン成功:'+decodedText;
+      document.getElementById('status').textContent='読み取り成功！';
+      try{scanner.stop();}catch(e){}
+      registerBarcode(decodedText);
     },
-    function(errorMessage){}
+    function(){}
   ).then(function(){
-    status.textContent='バーコードをかざしてください';
+    document.getElementById('status').textContent='バーコードをかざしてください';
     document.getElementById('startBtn').style.display='none';
     document.getElementById('stopBtn').style.display='block';
+    dbg.textContent='カメラ起動OK';
   }).catch(function(err){
-    status.textContent='カメラ起動失敗: '+err;
+    document.getElementById('status').textContent='カメラ起動失敗';
     document.getElementById('manualArea').style.display='block';
+    dbg.textContent='カメラエラー:'+err;
   });
 });
 
 document.getElementById('stopBtn').addEventListener('click',function(){
-  if(scanner){scanner.stop();}
+  if(scanner){try{scanner.stop();}catch(e){}}
   document.getElementById('startBtn').style.display='block';
   document.getElementById('stopBtn').style.display='none';
   document.getElementById('status').textContent='';
@@ -171,16 +167,15 @@ document.getElementById('fileBtn').addEventListener('click',function(){
 document.getElementById('fileInput').addEventListener('change',function(e){
   var file=e.target.files[0];
   if(!file)return;
-  var status=document.getElementById('status');
   document.getElementById('errorBox').style.display='none';
-  status.textContent='画像を解析中...';
-  var html5QrCode=new Html5Qrcode('reader');
-  html5QrCode.scanFile(file,true).then(function(decodedText){
-    status.textContent='';
+  document.getElementById('status').textContent='画像を解析中...';
+  var h=new Html5Qrcode('reader');
+  h.scanFile(file,true).then(function(decodedText){
+    document.getElementById('status').textContent='';
     registerBarcode(decodedText);
-  }).catch(function(err){
-    status.textContent='';
-    document.getElementById('errorBox').textContent='バーコードを検出できませんでした。手入力をお試しください。';
+  }).catch(function(){
+    document.getElementById('status').textContent='';
+    document.getElementById('errorBox').textContent='バーコードを検出できませんでした。';
     document.getElementById('errorBox').style.display='block';
     document.getElementById('manualArea').style.display='block';
   });
@@ -197,47 +192,43 @@ document.getElementById('manualSubmit').addEventListener('click',function(){
 });
 
 function registerBarcode(rawCode){
-  if(scanner){try{scanner.stop();}catch(e){}}
-  var code=extractCode(rawCode);
-  dbg.textContent='読取: '+rawCode+' → '+code+' (userId:'+globalUserId.substring(0,8)+')';
+  try{if(scanner)scanner.stop();}catch(e){}
+  var digits=rawCode.replace(/[^0-9]/g,'');
+  var code=digits.length>=4?digits.substring(0,14):null;
+  dbg.textContent='登録処理:raw='+rawCode+' digits='+digits+'('+digits.length+'桁) code='+code+' userId='+globalUserId.substring(0,8);
+
   if(!code){
     document.getElementById('errorBox').textContent='正しいバーコードを読み取ってください。';
     document.getElementById('errorBox').style.display='block';
-    document.getElementById('status').textContent='';
     return;
   }
-  document.getElementById('errorBox').style.display='none';
+
+  // UIを即更新（レスポンスを待たない）
   document.getElementById('startBtn').style.display='none';
   document.getElementById('stopBtn').style.display='none';
   document.getElementById('manualBtn').style.display='none';
   document.getElementById('fileBtn').style.display='none';
   document.getElementById('manualArea').style.display='none';
-  document.getElementById('status').textContent='登録中...';
-
-  var saveUrl=GAS_URL+'?page=save_barcode&userId='+globalUserId+'&barcode='+encodeURIComponent(code);
-  dbg.textContent+=' → 送信中...';
-  var sf=document.getElementById('saveFrame');
-  sf.onload=function(){
-    dbg.textContent+=' → 完了！';
-    showSuccess();
-  };
-  sf.src=saveUrl;
-
-  setTimeout(function(){
-    if(document.getElementById('resultBox').style.display!=='block'){
-      dbg.textContent+=' → タイムアウト完了';
-      showSuccess();
-    }
-  },5000);
-}
-
-function showSuccess(){
+  document.getElementById('errorBox').style.display='none';
   document.getElementById('status').style.display='none';
   document.getElementById('resultBox').style.display='block';
   document.getElementById('memberNo').textContent='登録が完了しました';
+
+  // GASに保存リクエスト（fire-and-forget）
+  var saveUrl=GAS_URL+'?page=save_barcode&userId='+globalUserId+'&barcode='+encodeURIComponent(code);
+  dbg.textContent+=' → 送信中';
+  var xhr=new XMLHttpRequest();
+  xhr.open('GET',saveUrl,true);
+  xhr.onreadystatechange=function(){
+    if(xhr.readyState===4){dbg.textContent+=' → GAS応答:'+xhr.status;}
+  };
+  xhr.send();
+
+  // 3秒後にLIFF閉じる
   setTimeout(function(){
-    try{liff.closeWindow();}catch(e){}
-  },2000);
+    dbg.textContent+=' → 閉じます';
+    try{liff.closeWindow();}catch(e){dbg.textContent+=' → closeWindow失敗';}
+  },3000);
 }
 
 window.addEventListener('message',function(e){

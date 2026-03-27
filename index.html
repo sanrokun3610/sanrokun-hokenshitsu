@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
 <title>サンロくんのほけんしつ</title>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:#f5f5f4;font-family:-apple-system,sans-serif;}
@@ -12,19 +13,21 @@ iframe{width:100%;height:100vh;border:none;display:none;}
 .loading{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;color:#666;}
 .loading .spinner{width:40px;height:40px;border:4px solid #e5e5e5;border-top:4px solid #22c55e;border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:16px;}
 @keyframes spin{to{transform:rotate(360deg);}}
-.scan-page{display:none;min-height:100vh;padding:24px;text-align:center;}
-.scan-card{background:#fff;border-radius:16px;padding:32px 24px;max-width:360px;margin:0 auto;box-shadow:0 2px 8px rgba(0,0,0,0.1);}
-.scan-icon{font-size:64px;margin-bottom:16px;}
-.scan-card h2{color:#166534;margin-bottom:8px;font-size:18px;}
-.scan-card p{color:#666;font-size:14px;margin-bottom:20px;line-height:1.5;}
-.btn{display:block;width:100%;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:bold;cursor:pointer;margin-bottom:12px;}
+.scan-page{display:none;min-height:100vh;padding:16px;}
+.scan-card{background:#fff;border-radius:16px;padding:24px 20px;max-width:400px;margin:0 auto;box-shadow:0 2px 8px rgba(0,0,0,0.1);}
+.scan-icon{font-size:48px;text-align:center;margin-bottom:12px;}
+.scan-card h2{color:#166534;margin-bottom:8px;font-size:18px;text-align:center;}
+.scan-card>p{color:#666;font-size:13px;margin-bottom:16px;line-height:1.5;text-align:center;}
+.btn{display:block;width:100%;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:bold;cursor:pointer;margin-bottom:10px;}
 .btn-primary{background:#22c55e;color:#fff;}
 .btn-secondary{background:#e5e5e5;color:#333;}
-.result-box{display:none;margin-top:16px;padding:16px;background:#f0fdf4;border-radius:12px;}
+.btn-danger{background:#ef4444;color:#fff;}
+#reader{width:100%;margin-bottom:12px;border-radius:8px;overflow:hidden;}
+.result-box{display:none;margin-top:16px;padding:16px;background:#f0fdf4;border-radius:12px;text-align:center;}
 .result-box .number{font-size:22px;font-weight:bold;color:#166534;margin-top:8px;}
 .manual-area{display:none;margin-top:16px;}
 .manual-area input{width:100%;padding:12px;border:2px solid #e5e5e5;border-radius:8px;font-size:18px;text-align:center;margin-bottom:12px;}
-.debug{margin-top:12px;padding:8px;background:#fef2f2;border-radius:8px;font-size:11px;color:#991b1b;}
+.status{text-align:center;font-size:13px;color:#666;margin:8px 0;}
 </style>
 </head>
 <body>
@@ -37,8 +40,11 @@ iframe{width:100%;height:100vh;border:none;display:none;}
 <div class="scan-card">
 <div class="scan-icon">💳</div>
 <h2>ポイントカード登録</h2>
-<p>サンロードのポイントカードの<br>バーコードをスキャンしてください</p>
-<button class="btn btn-primary" id="scanBtn">📷 バーコードをスキャン</button>
+<p>ポイントカードのバーコードを<br>カメラにかざしてください</p>
+<div id="reader"></div>
+<div class="status" id="status"></div>
+<button class="btn btn-primary" id="startBtn">📷 カメラを起動</button>
+<button class="btn btn-danger" id="stopBtn" style="display:none;">⏹ カメラを停止</button>
 <button class="btn btn-secondary" id="manualBtn">✏️ 番号を手入力する</button>
 <div class="manual-area" id="manualArea">
 <input type="text" id="manualNo" placeholder="会員番号を入力" inputmode="numeric">
@@ -49,7 +55,6 @@ iframe{width:100%;height:100vh;border:none;display:none;}
 <div class="number" id="memberNo"></div>
 <p style="margin-top:12px;font-size:13px;color:#666;">2秒後に自動で閉じます...</p>
 </div>
-<div class="debug" id="debug">デバッグ: 初期化中...</div>
 </div>
 </div>
 <script>
@@ -58,18 +63,15 @@ var GAS_URL='https://script.google.com/macros/s/AKfycbwqJPueCoeMtpY8WcCAHQjYXIRO
 var params=new URLSearchParams(window.location.search);
 var tab=params.get('tab')||'records';
 var globalUserId='';
-var dbg=document.getElementById('debug');
+var scanner=null;
 
 liff.init({liffId:LIFF_ID}).then(function(){
-  dbg.textContent='LIFF初期化OK。プロフィール取得中...';
   return liff.getProfile();
 }).then(function(profile){
   globalUserId=profile.userId;
-  dbg.textContent='userId取得OK: '+profile.userId.substring(0,10)+'...';
   if(tab==='scan'){showScanPage();}
   else{showIframe(profile.userId);}
 }).catch(function(err){
-  dbg.textContent='LIFFエラー: '+JSON.stringify(err);
   var userId=params.get('userId');
   if(userId){
     globalUserId=userId;
@@ -90,38 +92,44 @@ function showIframe(userId){
 function showScanPage(){
   document.getElementById('loading').style.display='none';
   document.getElementById('scanPage').style.display='block';
-  dbg.textContent+=' | scanCodeV2='+(typeof liff.scanCodeV2)+' | scanCode='+(typeof liff.scanCode);
 }
 
-document.getElementById('scanBtn').addEventListener('click',function(){
-  dbg.textContent='スキャンボタン押された...';
-  try{
-    if(typeof liff.scanCodeV2==='function'){
-      dbg.textContent='scanCodeV2を呼び出し中...';
-      liff.scanCodeV2().then(function(result){
-        dbg.textContent='スキャン成功: '+JSON.stringify(result);
-        if(result&&result.value){registerBarcode(result.value);}
-      }).catch(function(err){
-        dbg.textContent='scanCodeV2失敗: '+JSON.stringify(err);
-        document.getElementById('manualArea').style.display='block';
+document.getElementById('startBtn').addEventListener('click',function(){
+  var status=document.getElementById('status');
+  status.textContent='カメラ起動中...';
+  scanner=new Html5Qrcode('reader');
+  scanner.start(
+    {facingMode:'environment'},
+    {fps:10,qrbox:{width:280,height:150},formatsToSupport:[
+      Html5QrcodeSupportedFormats.EAN_13,
+      Html5QrcodeSupportedFormats.EAN_8,
+      Html5QrcodeSupportedFormats.CODE_128,
+      Html5QrcodeSupportedFormats.CODE_39,
+      Html5QrcodeSupportedFormats.QR_CODE,
+      Html5QrcodeSupportedFormats.ITF,
+    ]},
+    function(decodedText){
+      status.textContent='読み取り成功！';
+      scanner.stop().then(function(){
+        registerBarcode(decodedText);
       });
-    }else if(typeof liff.scanCode==='function'){
-      dbg.textContent='scanCode(旧版)を呼び出し中...';
-      liff.scanCode().then(function(result){
-        dbg.textContent='スキャン成功: '+JSON.stringify(result);
-        if(result&&result.value){registerBarcode(result.value);}
-      }).catch(function(err){
-        dbg.textContent='scanCode失敗: '+JSON.stringify(err);
-        document.getElementById('manualArea').style.display='block';
-      });
-    }else{
-      dbg.textContent='スキャン機能なし';
-      document.getElementById('manualArea').style.display='block';
-    }
-  }catch(e){
-    dbg.textContent='例外: '+e.message;
+    },
+    function(errorMessage){}
+  ).then(function(){
+    status.textContent='バーコードをかざしてください';
+    document.getElementById('startBtn').style.display='none';
+    document.getElementById('stopBtn').style.display='block';
+  }).catch(function(err){
+    status.textContent='カメラを起動できません: '+err;
     document.getElementById('manualArea').style.display='block';
-  }
+  });
+});
+
+document.getElementById('stopBtn').addEventListener('click',function(){
+  if(scanner){scanner.stop();}
+  document.getElementById('startBtn').style.display='block';
+  document.getElementById('stopBtn').style.display='none';
+  document.getElementById('status').textContent='';
 });
 
 document.getElementById('manualBtn').addEventListener('click',function(){
@@ -135,17 +143,19 @@ document.getElementById('manualSubmit').addEventListener('click',function(){
 });
 
 function registerBarcode(code){
-  document.getElementById('scanBtn').style.display='none';
+  if(scanner){try{scanner.stop();}catch(e){}}
+  document.getElementById('startBtn').style.display='none';
+  document.getElementById('stopBtn').style.display='none';
   document.getElementById('manualBtn').style.display='none';
   document.getElementById('manualArea').style.display='none';
-  dbg.textContent='登録中: '+code;
+  document.getElementById('status').textContent='登録中...';
   var img=new Image();
   img.onload=img.onerror=function(){
+    document.getElementById('status').style.display='none';
     document.getElementById('resultBox').style.display='block';
     document.getElementById('memberNo').textContent='会員番号: '+code;
-    dbg.textContent='登録完了！2秒後に閉じます';
     setTimeout(function(){
-      try{liff.closeWindow();}catch(e){dbg.textContent='closeWindow失敗: '+e.message;}
+      try{liff.closeWindow();}catch(e){}
     },2000);
   };
   img.src=GAS_URL+'?page=save_barcode&userId='+globalUserId+'&barcode='+encodeURIComponent(code);

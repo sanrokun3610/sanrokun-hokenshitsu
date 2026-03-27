@@ -44,6 +44,12 @@ liff.init({liffId:LIFF_ID}).then(function(){
     document.getElementById('loading').innerHTML='<div>LINEから開いてください</div>';
   }
 });
+
+window.addEventListener('message',function(e){
+  if(e.data==='closeLiff'){
+    if(typeof liff!=='undefined'){liff.closeWindow();}
+  }
+});
 </script>
 </body>
 </html>

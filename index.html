@@ -29,6 +29,7 @@ iframe{width:100%;height:100vh;border:none;display:none;}
 .result-box{display:none;margin-top:16px;padding:16px;background:#f0fdf4;border-radius:12px;text-align:center;}
 .result-box .number{font-size:18px;font-weight:bold;color:#166534;margin-top:8px;}
 .error-box{display:none;margin-top:12px;padding:12px;background:#fef2f2;border-radius:8px;text-align:center;color:#dc2626;font-size:14px;font-weight:bold;}
+.debug-box{margin-top:8px;padding:8px;background:#f0f0f0;border-radius:6px;font-size:11px;color:#666;word-break:break-all;}
 .manual-area{display:none;margin-top:16px;}
 .manual-area input{width:100%;padding:12px;border:2px solid #e5e5e5;border-radius:8px;font-size:18px;text-align:center;margin-bottom:12px;}
 .status{text-align:center;font-size:13px;color:#666;margin:8px 0;}
@@ -70,6 +71,7 @@ iframe{width:100%;height:100vh;border:none;display:none;}
 </div>
 
 <div class="error-box" id="errorBox"></div>
+<div class="debug-box" id="debugBox" style="display:none;"></div>
 
 <div class="result-box" id="resultBox">
 <p>✅ 登録完了！</p>
@@ -85,6 +87,7 @@ var params=new URLSearchParams(window.location.search);
 var tab=params.get('tab')||'records';
 var globalUserId='';
 var scanner=null;
+var dbg=document.getElementById('debugBox');
 
 liff.init({liffId:LIFF_ID}).then(function(){
   return liff.getProfile();
@@ -117,10 +120,13 @@ function showScanPage(){
 
 function validateAndExtract(code){
   var digits=code.replace(/[^0-9]/g,'');
+  // デバッグ表示
+  dbg.textContent='読取値: '+code+' → 数字: '+digits+' ('+digits.length+'桁)';
+  dbg.style.display='block';
   if(digits.length===24){
     return{valid:true,code:digits.substring(0,14)};
   }
-  return{valid:false};
+  return{valid:false,digits:digits.length};
 }
 
 document.getElementById('startBtn').addEventListener('click',function(){
@@ -209,11 +215,13 @@ function registerBarcode(rawCode){
   document.getElementById('fileBtn').style.display='none';
   document.getElementById('manualArea').style.display='none';
   document.getElementById('status').textContent='登録中...';
+  dbg.textContent+=' → 保存値: '+code+' ('+code.length+'桁) userId: '+globalUserId;
   var img=new Image();
   img.onload=img.onerror=function(){
     document.getElementById('status').style.display='none';
     document.getElementById('resultBox').style.display='block';
     document.getElementById('memberNo').textContent='登録が完了しました';
+    dbg.textContent+=' → 保存リクエスト完了';
     setTimeout(function(){
       try{liff.closeWindow();}catch(e){}
     },2000);

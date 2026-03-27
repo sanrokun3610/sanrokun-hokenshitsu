@@ -27,7 +27,7 @@ iframe{width:100%;height:100vh;border:none;display:none;}
 .btn-danger{background:#ef4444;color:#fff;}
 #reader{width:100%;margin-bottom:12px;border-radius:8px;overflow:hidden;}
 .result-box{display:none;margin-top:16px;padding:16px;background:#f0fdf4;border-radius:12px;text-align:center;}
-.result-box .number{font-size:22px;font-weight:bold;color:#166534;margin-top:8px;}
+.result-box .number{font-size:18px;font-weight:bold;color:#166534;margin-top:8px;}
 .error-box{display:none;margin-top:12px;padding:12px;background:#fef2f2;border-radius:8px;text-align:center;color:#dc2626;font-size:14px;font-weight:bold;}
 .manual-area{display:none;margin-top:16px;}
 .manual-area input{width:100%;padding:12px;border:2px solid #e5e5e5;border-radius:8px;font-size:18px;text-align:center;margin-bottom:12px;}
@@ -115,10 +115,10 @@ function showScanPage(){
   document.getElementById('scanPage').style.display='block';
 }
 
-function validateBarcode(code){
+function validateAndExtract(code){
   var digits=code.replace(/[^0-9]/g,'');
   if(digits.length===24){
-    return{valid:true,code:digits};
+    return{valid:true,code:digits.substring(0,14)};
   }
   return{valid:false};
 }
@@ -194,7 +194,7 @@ document.getElementById('manualSubmit').addEventListener('click',function(){
 
 function registerBarcode(rawCode){
   if(scanner){try{scanner.stop();}catch(e){}}
-  var result=validateBarcode(rawCode);
+  var result=validateAndExtract(rawCode);
   if(!result.valid){
     document.getElementById('errorBox').textContent='正しいバーコードを読み取ってください。';
     document.getElementById('errorBox').style.display='block';

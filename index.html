@@ -24,7 +24,7 @@ iframe{width:100%;height:100vh;border:none;display:none;}
 .result-box .number{font-size:22px;font-weight:bold;color:#166534;margin-top:8px;}
 .manual-area{display:none;margin-top:16px;}
 .manual-area input{width:100%;padding:12px;border:2px solid #e5e5e5;border-radius:8px;font-size:18px;text-align:center;margin-bottom:12px;}
-.error-info{margin-top:12px;padding:8px;background:#fef2f2;border-radius:8px;font-size:11px;color:#991b1b;display:none;}
+.debug{margin-top:12px;padding:8px;background:#fef2f2;border-radius:8px;font-size:11px;color:#991b1b;}
 </style>
 </head>
 <body>
@@ -49,7 +49,7 @@ iframe{width:100%;height:100vh;border:none;display:none;}
 <div class="number" id="memberNo"></div>
 <p style="margin-top:12px;font-size:13px;color:#666;">2秒後に自動で閉じます...</p>
 </div>
-<div class="error-info" id="errorInfo"></div>
+<div class="debug" id="debug">デバッグ: 初期化中...</div>
 </div>
 </div>
 <script>
@@ -58,14 +58,18 @@ var GAS_URL='https://script.google.com/macros/s/AKfycbwqJPueCoeMtpY8WcCAHQjYXIRO
 var params=new URLSearchParams(window.location.search);
 var tab=params.get('tab')||'records';
 var globalUserId='';
+var dbg=document.getElementById('debug');
 
 liff.init({liffId:LIFF_ID}).then(function(){
+  dbg.textContent='LIFF初期化OK。プロフィール取得中...';
   return liff.getProfile();
 }).then(function(profile){
   globalUserId=profile.userId;
+  dbg.textContent='userId取得OK: '+profile.userId.substring(0,10)+'...';
   if(tab==='scan'){showScanPage();}
   else{showIframe(profile.userId);}
 }).catch(function(err){
+  dbg.textContent='LIFFエラー: '+JSON.stringify(err);
   var userId=params.get('userId');
   if(userId){
     globalUserId=userId;
@@ -86,31 +90,36 @@ function showIframe(userId){
 function showScanPage(){
   document.getElementById('loading').style.display='none';
   document.getElementById('scanPage').style.display='block';
+  dbg.textContent+=' | scanCodeV2='+(typeof liff.scanCodeV2)+' | scanCode='+(typeof liff.scanCode);
 }
 
 document.getElementById('scanBtn').addEventListener('click',function(){
-  var errBox=document.getElementById('errorInfo');
-  errBox.style.display='none';
-
-  if(typeof liff.scanCodeV2==='function'){
-    liff.scanCodeV2().then(function(result){
-      if(result&&result.value){registerBarcode(result.value);}
-    }).catch(function(err){
-      errBox.textContent='scanCodeV2エラー: '+JSON.stringify(err);
-      errBox.style.display='block';
+  dbg.textContent='スキャンボタン押された...';
+  try{
+    if(typeof liff.scanCodeV2==='function'){
+      dbg.textContent='scanCodeV2を呼び出し中...';
+      liff.scanCodeV2().then(function(result){
+        dbg.textContent='スキャン成功: '+JSON.stringify(result);
+        if(result&&result.value){registerBarcode(result.value);}
+      }).catch(function(err){
+        dbg.textContent='scanCodeV2失敗: '+JSON.stringify(err);
+        document.getElementById('manualArea').style.display='block';
+      });
+    }else if(typeof liff.scanCode==='function'){
+      dbg.textContent='scanCode(旧版)を呼び出し中...';
+      liff.scanCode().then(function(result){
+        dbg.textContent='スキャン成功: '+JSON.stringify(result);
+        if(result&&result.value){registerBarcode(result.value);}
+      }).catch(function(err){
+        dbg.textContent='scanCode失敗: '+JSON.stringify(err);
+        document.getElementById('manualArea').style.display='block';
+      });
+    }else{
+      dbg.textContent='スキャン機能なし';
       document.getElementById('manualArea').style.display='block';
-    });
-  }else if(typeof liff.scanCode==='function'){
-    liff.scanCode().then(function(result){
-      if(result&&result.value){registerBarcode(result.value);}
-    }).catch(function(err){
-      errBox.textContent='scanCodeエラー: '+JSON.stringify(err);
-      errBox.style.display='block';
-      document.getElementById('manualArea').style.display='block';
-    });
-  }else{
-    errBox.textContent='このLINEバージョンではスキャン機能が利用できません';
-    errBox.style.display='block';
+    }
+  }catch(e){
+    dbg.textContent='例外: '+e.message;
     document.getElementById('manualArea').style.display='block';
   }
 });
@@ -129,13 +138,14 @@ function registerBarcode(code){
   document.getElementById('scanBtn').style.display='none';
   document.getElementById('manualBtn').style.display='none';
   document.getElementById('manualArea').style.display='none';
-  document.getElementById('errorInfo').style.display='none';
+  dbg.textContent='登録中: '+code;
   var img=new Image();
   img.onload=img.onerror=function(){
     document.getElementById('resultBox').style.display='block';
     document.getElementById('memberNo').textContent='会員番号: '+code;
+    dbg.textContent='登録完了！2秒後に閉じます';
     setTimeout(function(){
-      try{liff.closeWindow();}catch(e){}
+      try{liff.closeWindow();}catch(e){dbg.textContent='closeWindow失敗: '+e.message;}
     },2000);
   };
   img.src=GAS_URL+'?page=save_barcode&userId='+globalUserId+'&barcode='+encodeURIComponent(code);

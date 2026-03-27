@@ -43,7 +43,7 @@ iframe{width:100%;height:100vh;border:none;display:none;}
 <p>ポイントカードのバーコードを<br>カメラにかざしてください</p>
 <div id="reader"></div>
 <div class="status" id="status"></div>
-<button class="btn btn-primary" id="startBtn">📷 カメラを起動</button>
+<button class="btn btn-primary" id="startBtn">📷 カメラを起動してスキャン</button>
 <button class="btn btn-danger" id="stopBtn" style="display:none;">⏹ カメラを停止</button>
 <button class="btn btn-secondary" id="manualBtn">✏️ 番号を手入力する</button>
 <div class="manual-area" id="manualArea">
@@ -94,6 +94,7 @@ function showScanPage(){
   document.getElementById('scanPage').style.display='block';
 }
 
+// カメラ起動（html5-qrcodeのみ使用、LIFF scanCode不使用）
 document.getElementById('startBtn').addEventListener('click',function(){
   var status=document.getElementById('status');
   status.textContent='カメラ起動中...';
@@ -110,9 +111,7 @@ document.getElementById('startBtn').addEventListener('click',function(){
     ]},
     function(decodedText){
       status.textContent='読み取り成功！';
-      scanner.stop().then(function(){
-        registerBarcode(decodedText);
-      });
+      scanner.stop().then(function(){registerBarcode(decodedText);});
     },
     function(errorMessage){}
   ).then(function(){
@@ -120,7 +119,7 @@ document.getElementById('startBtn').addEventListener('click',function(){
     document.getElementById('startBtn').style.display='none';
     document.getElementById('stopBtn').style.display='block';
   }).catch(function(err){
-    status.textContent='カメラを起動できません: '+err;
+    status.textContent='カメラ起動失敗: '+err;
     document.getElementById('manualArea').style.display='block';
   });
 });

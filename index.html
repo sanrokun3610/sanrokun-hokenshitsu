@@ -118,7 +118,7 @@ function showIframe(userId){
 function showScanPage(){
   document.getElementById('loading').style.display='none';
   document.getElementById('scanPage').style.display='block';
-  dbg.textContent+=' | BarcodeDetector:'+(typeof BarcodeDetector!=='undefined'?'あり':'なし');
+  dbg.textContent+=' | BD:'+(typeof BarcodeDetector!=='undefined'?'○':'×');
 }
 
 function extractCode(rawCode){
@@ -180,94 +180,105 @@ document.getElementById('fileInput').addEventListener('change',function(e){
   if(!file)return;
   document.getElementById('errorBox').style.display='none';
   document.getElementById('status').textContent='画像を解析中...';
-  dbg.textContent='ファイル:'+file.name;
+  dbg.textContent='ファイル選択OK';
 
   var reader=new FileReader();
   reader.onload=function(ev){
     var img=new Image();
     img.onload=function(){
-      dbg.textContent+=' → 画像読込OK('+img.width+'x'+img.height+')';
-      scanImageForBarcode(img,file);
+      dbg.textContent='画像読込OK('+img.width+'x'+img.height+')';
+      scanImageForBarcode(img);
     };
     img.onerror=function(){
-      dbg.textContent+=' → 画像読込失敗';
+      dbg.textContent='画像読込失敗';
       showScanError();
     };
     img.src=ev.target.result;
   };
   reader.onerror=function(){
-    dbg.textContent+=' → ファイル読込失敗';
+    dbg.textContent='ファイル読込失敗';
     showScanError();
   };
   reader.readAsDataURL(file);
 });
 
-function scanImageForBarcode(img,file){
-  // 方法1: BarcodeDetector API（ブラウザ内蔵）
+function scanImageForBarcode(img){
+  // 方法1: BarcodeDetector API
   if(typeof BarcodeDetector!=='undefined'){
-    dbg.textContent+=' → BarcodeDetector使用';
+    dbg.textContent+=' → BD試行';
     var detector=new BarcodeDetector({formats:['ean_13','ean_8','code_128','code_39','itf','qr_code']});
     detector.detect(img).then(function(barcodes){
       if(barcodes.length>0){
-        dbg.textContent+=' → 検出:'+barcodes[0].rawValue;
+        dbg.textContent+=' → BD成功:'+barcodes[0].rawValue;
         document.getElementById('status').textContent='';
         registerBarcode(barcodes[0].rawValue);
       }else{
-        dbg.textContent+=' → BarcodeDetector検出なし→AI読取へ';
+        dbg.textContent+=' → BD検出なし';
         scanWithGemini(img);
       }
     }).catch(function(err){
-      dbg.textContent+=' → BarcodeDetectorエラー:'+err+'→AI読取へ';
+      dbg.textContent+=' → BDエラー';
       scanWithGemini(img);
     });
   }else{
-    // BarcodeDetector未対応 → Gemini AIで読み取り
-    dbg.textContent+=' → BarcodeDetectorなし→AI読取へ';
+    dbg.textContent+=' → BD非対応';
     scanWithGemini(img);
   }
 }
 
 function scanWithGemini(img){
-  dbg.textContent+=' → Geminiに送信中...';
-  document.getElementById('status').textContent='AIで解析中...';
+  dbg.textContent+=' → AI解析中...';
+  document.getElementById('status').textContent='🐻 AIで解析中...';
 
-  // 画像をbase64に変換（上部1/4を切り抜き）
+  // 上部35%を切り抜いてJPEGに変換
   var canvas=document.createElement('canvas');
-  canvas.width=img.width;
-  canvas.height=Math.floor(img.height*0.35);
+  canvas.width=Math.min(img.width,800);
+  var cropH=Math.floor(img.height*0.35);
+  canvas.height=Math.floor(cropH*(canvas.width/img.width));
   var ctx=canvas.getContext('2d');
-  ctx.drawImage(img,0,0,img.width,canvas.height,0,0,canvas.width,canvas.height);
-  var base64=canvas.toDataURL('image/jpeg',0.8).split(',')[1];
+  ctx.drawImage(img,0,0,img.width,cropH,0,0,canvas.width,canvas.height);
+  var base64=canvas.toDataURL('image/jpeg',0.7).split(',')[1];
+  dbg.textContent+=' base64:'+Math.round(base64.length/1024)+'KB';
 
-  // GASのGemini APIを使ってバーコード番号を読み取り
+  // GASにPOSTで送信
   var xhr=new XMLHttpRequest();
-  xhr.open('GET',GAS_URL+'?page=read_barcode&userId='+globalUserId+'&image='+encodeURIComponent(base64.substring(0,50000)),true);
+  xhr.open('POST',GAS_URL+'?page=read_barcode&userId='+globalUserId,true);
+  xhr.setRequestHeader('Content-Type','application/json');
+  xhr.timeout=15000;
   xhr.onreadystatechange=function(){
     if(xhr.readyState===4){
-      dbg.textContent+=' → GAS応答:'+xhr.status;
-      if(xhr.status===200){
+      dbg.textContent+=' → 応答:'+xhr.status;
+      if(xhr.status===200||xhr.status===302){
         try{
-          var result=JSON.parse(xhr.responseText);
-          if(result.barcode){
-            dbg.textContent+=' → AI読取:'+result.barcode;
-            document.getElementById('status').textContent='';
-            registerBarcode(result.barcode);
-            return;
+          var text=xhr.responseText;
+          // GASのリダイレクト後のレスポンスからJSONを抽出
+          var jsonMatch=text.match(/\{[^{}]*"barcode"[^{}]*\}/);
+          if(jsonMatch){
+            var result=JSON.parse(jsonMatch[0]);
+            if(result.barcode){
+              dbg.textContent+=' → AI読取:'+result.barcode;
+              document.getElementById('status').textContent='';
+              registerBarcode(result.barcode);
+              return;
+            }
           }
-        }catch(e){}
+          // エラーレスポンスチェック
+          var errMatch=text.match(/\{[^{}]*"error"[^{}]*\}/);
+          if(errMatch){
+            dbg.textContent+=' → '+errMatch[0];
+          }
+        }catch(e){
+          dbg.textContent+=' → パースエラー';
+        }
       }
-      // AI読取も失敗
-      dbg.textContent+=' → AI読取失敗';
       showScanError();
     }
   };
-  // タイムアウト10秒
-  xhr.timeout=10000;
   xhr.ontimeout=function(){
     dbg.textContent+=' → タイムアウト';
     showScanError();
   };
-  xhr.send();
+  xhr.send(JSON.stringify({image:base64}));
 }
 
 function showScanError(){

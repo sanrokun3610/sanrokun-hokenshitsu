@@ -63,6 +63,7 @@ iframe{width:100%;height:100vh;border:none;display:none;}
 <hr class="divider">
 
 <div class="section-label">✏️ うまくいかない場合</div>
+<div class="section-hint">カードまたはアプリに表示されている番号をそのまま入力してください</div>
 <button class="btn btn-secondary" id="manualBtn">番号を手入力</button>
 <div class="manual-area" id="manualArea">
 <input type="text" id="manualNo" placeholder="会員番号を入力してください" inputmode="numeric">
@@ -89,7 +90,7 @@ var scanner=null;
 var dbg=document.getElementById('dbg');
 
 liff.init({liffId:LIFF_ID}).then(function(){
-  dbg.textContent='LIFF初期化OK';
+  dbg.textContent='LIFF OK';
   return liff.getProfile();
 }).then(function(profile){
   globalUserId=profile.userId;
@@ -117,6 +118,13 @@ function showIframe(userId){
 function showScanPage(){
   document.getElementById('loading').style.display='none';
   document.getElementById('scanPage').style.display='block';
+}
+
+function extractCode(rawCode){
+  var digits=rawCode.replace(/[^0-9]/g,'');
+  if(digits.length===16) return digits;
+  if(digits.length===24) return digits.substring(0,14);
+  return null;
 }
 
 document.getElementById('startBtn').addEventListener('click',function(){
@@ -169,16 +177,44 @@ document.getElementById('fileInput').addEventListener('change',function(e){
   if(!file)return;
   document.getElementById('errorBox').style.display='none';
   document.getElementById('status').textContent='画像を解析中...';
-  var h=new Html5Qrcode('reader');
-  h.scanFile(file,true).then(function(decodedText){
-    document.getElementById('status').textContent='';
-    registerBarcode(decodedText);
-  }).catch(function(){
-    document.getElementById('status').textContent='';
-    document.getElementById('errorBox').textContent='バーコードを検出できませんでした。';
-    document.getElementById('errorBox').style.display='block';
-    document.getElementById('manualArea').style.display='block';
-  });
+  dbg.textContent='スクショ解析開始';
+
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    var img=new Image();
+    img.onload=function(){
+      var canvas=document.createElement('canvas');
+      canvas.width=img.width;
+      canvas.height=Math.floor(img.height*0.25);
+      var ctx=canvas.getContext('2d');
+      ctx.drawImage(img,0,0,img.width,canvas.height,0,0,canvas.width,canvas.height);
+      canvas.toBlob(function(blob){
+        var croppedFile=new File([blob],'cropped.png',{type:'image/png'});
+        var h=new Html5Qrcode('reader');
+        dbg.textContent='上部1/4でスキャン中...';
+        h.scanFile(croppedFile,true).then(function(decodedText){
+          document.getElementById('status').textContent='';
+          dbg.textContent='上部1/4で成功:'+decodedText;
+          registerBarcode(decodedText);
+        }).catch(function(){
+          dbg.textContent='上部1/4失敗→全体でリトライ';
+          h.scanFile(file,true).then(function(decodedText){
+            document.getElementById('status').textContent='';
+            dbg.textContent='全体で成功:'+decodedText;
+            registerBarcode(decodedText);
+          }).catch(function(){
+            document.getElementById('status').textContent='';
+            document.getElementById('errorBox').textContent='バーコードを検出できませんでした。手入力をお試しください。';
+            document.getElementById('errorBox').style.display='block';
+            document.getElementById('manualArea').style.display='block';
+            dbg.textContent='全体でも失敗';
+          });
+        });
+      },'image/png');
+    };
+    img.src=ev.target.result;
+  };
+  reader.readAsDataURL(file);
 });
 
 document.getElementById('manualBtn').addEventListener('click',function(){
@@ -193,9 +229,9 @@ document.getElementById('manualSubmit').addEventListener('click',function(){
 
 function registerBarcode(rawCode){
   try{if(scanner)scanner.stop();}catch(e){}
+  var code=extractCode(rawCode);
   var digits=rawCode.replace(/[^0-9]/g,'');
-  var code=digits.length>=4?digits.substring(0,14):null;
-  dbg.textContent='登録処理:raw='+rawCode+' digits='+digits+'('+digits.length+'桁) code='+code+' userId='+globalUserId.substring(0,8);
+  dbg.textContent='読取:'+digits.length+'桁 → 保存:'+code;
 
   if(!code){
     document.getElementById('errorBox').textContent='正しいバーコードを読み取ってください。';
@@ -203,7 +239,6 @@ function registerBarcode(rawCode){
     return;
   }
 
-  // UIを即更新（レスポンスを待たない）
   document.getElementById('startBtn').style.display='none';
   document.getElementById('stopBtn').style.display='none';
   document.getElementById('manualBtn').style.display='none';
@@ -214,20 +249,17 @@ function registerBarcode(rawCode){
   document.getElementById('resultBox').style.display='block';
   document.getElementById('memberNo').textContent='登録が完了しました';
 
-  // GASに保存リクエスト（fire-and-forget）
   var saveUrl=GAS_URL+'?page=save_barcode&userId='+globalUserId+'&barcode='+encodeURIComponent(code);
   dbg.textContent+=' → 送信中';
   var xhr=new XMLHttpRequest();
   xhr.open('GET',saveUrl,true);
   xhr.onreadystatechange=function(){
-    if(xhr.readyState===4){dbg.textContent+=' → GAS応答:'+xhr.status;}
+    if(xhr.readyState===4){dbg.textContent+=' → GAS:'+xhr.status;}
   };
   xhr.send();
 
-  // 3秒後にLIFF閉じる
   setTimeout(function(){
-    dbg.textContent+=' → 閉じます';
-    try{liff.closeWindow();}catch(e){dbg.textContent+=' → closeWindow失敗';}
+    try{liff.closeWindow();}catch(e){}
   },3000);
 }
 

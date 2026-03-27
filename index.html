@@ -7,11 +7,23 @@
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
-body{background:#f5f5f4;font-family:sans-serif;}
+body{background:#f5f5f4;font-family:-apple-system,sans-serif;}
 iframe{width:100%;height:100vh;border:none;display:none;}
 .loading{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;color:#666;}
 .loading .spinner{width:40px;height:40px;border:4px solid #e5e5e5;border-top:4px solid #22c55e;border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:16px;}
 @keyframes spin{to{transform:rotate(360deg);}}
+.scan-page{display:none;min-height:100vh;padding:24px;text-align:center;}
+.scan-card{background:#fff;border-radius:16px;padding:32px 24px;max-width:360px;margin:0 auto;box-shadow:0 2px 8px rgba(0,0,0,0.1);}
+.scan-icon{font-size:64px;margin-bottom:16px;}
+.scan-card h2{color:#166534;margin-bottom:8px;font-size:18px;}
+.scan-card p{color:#666;font-size:14px;margin-bottom:20px;line-height:1.5;}
+.btn{display:block;width:100%;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:bold;cursor:pointer;margin-bottom:12px;}
+.btn-primary{background:#22c55e;color:#fff;}
+.btn-secondary{background:#e5e5e5;color:#333;}
+.result-box{display:none;margin-top:16px;padding:16px;background:#f0fdf4;border-radius:12px;}
+.result-box .number{font-size:22px;font-weight:bold;color:#166534;margin-top:8px;}
+.manual-area{display:none;margin-top:16px;}
+.manual-area input{width:100%;padding:12px;border:2px solid #e5e5e5;border-radius:8px;font-size:18px;text-align:center;margin-bottom:12px;}
 </style>
 </head>
 <body>
@@ -20,35 +32,96 @@ iframe{width:100%;height:100vh;border:none;display:none;}
 <div>読み込み中...</div>
 </div>
 <iframe id="app"></iframe>
+<div class="scan-page" id="scanPage">
+<div class="scan-card">
+<div class="scan-icon">💳</div>
+<h2>ポイントカード登録</h2>
+<p>サンロードのポイントカードの<br>バーコードをスキャンしてください</p>
+<button class="btn btn-primary" id="scanBtn">📷 バーコードをスキャン</button>
+<button class="btn btn-secondary" id="manualBtn">✏️ 番号を手入力する</button>
+<div class="manual-area" id="manualArea">
+<input type="text" id="manualNo" placeholder="会員番号を入力" inputmode="numeric">
+<button class="btn btn-primary" id="manualSubmit">登録する</button>
+</div>
+<div class="result-box" id="resultBox">
+<p>✅ 登録完了！</p>
+<div class="number" id="memberNo"></div>
+<p style="margin-top:12px;font-size:13px;color:#666;">LINEに戻って登録を続けてください</p>
+</div>
+</div>
+</div>
 <script>
 var LIFF_ID='2009608282-IAzNrGIA';
 var GAS_URL='https://script.google.com/macros/s/AKfycbwqJPueCoeMtpY8WcCAHQjYXIROi8VAaqsbZmuf2iUQ65MG6teaJOC2CwZiGrUNlsd6/exec';
 var params=new URLSearchParams(window.location.search);
 var tab=params.get('tab')||'records';
+var globalUserId='';
 
 liff.init({liffId:LIFF_ID}).then(function(){
   return liff.getProfile();
 }).then(function(profile){
-  var iframe=document.getElementById('app');
-  iframe.src=GAS_URL+'?page='+tab+'&userId='+profile.userId;
-  iframe.style.display='block';
-  document.getElementById('loading').style.display='none';
+  globalUserId=profile.userId;
+  if(tab==='scan'){showScanPage();}
+  else{showIframe(profile.userId);}
 }).catch(function(err){
   var userId=params.get('userId');
   if(userId){
-    var iframe=document.getElementById('app');
-    iframe.src=GAS_URL+'?page='+tab+'&userId='+userId;
-    iframe.style.display='block';
-    document.getElementById('loading').style.display='none';
+    globalUserId=userId;
+    if(tab==='scan'){showScanPage();}
+    else{showIframe(userId);}
   }else{
     document.getElementById('loading').innerHTML='<div>LINEから開いてください</div>';
   }
 });
 
+function showIframe(userId){
+  var iframe=document.getElementById('app');
+  iframe.src=GAS_URL+'?page='+tab+'&userId='+userId;
+  iframe.style.display='block';
+  document.getElementById('loading').style.display='none';
+}
+
+function showScanPage(){
+  document.getElementById('loading').style.display='none';
+  document.getElementById('scanPage').style.display='block';
+}
+
+document.getElementById('scanBtn').addEventListener('click',function(){
+  liff.scanCodeV2().then(function(result){
+    if(result&&result.value){registerBarcode(result.value);}
+  }).catch(function(err){
+    alert('スキャンできませんでした。手入力をお試しください。');
+    document.getElementById('manualArea').style.display='block';
+  });
+});
+
+document.getElementById('manualBtn').addEventListener('click',function(){
+  document.getElementById('manualArea').style.display='block';
+});
+
+document.getElementById('manualSubmit').addEventListener('click',function(){
+  var no=document.getElementById('manualNo').value.trim();
+  if(!no){alert('番号を入力してください');return;}
+  registerBarcode(no);
+});
+
+function registerBarcode(code){
+  document.getElementById('scanBtn').style.display='none';
+  document.getElementById('manualBtn').style.display='none';
+  document.getElementById('manualArea').style.display='none';
+  var img=new Image();
+  img.onload=img.onerror=function(){
+    document.getElementById('resultBox').style.display='block';
+    document.getElementById('memberNo').textContent='会員番号: '+code;
+    setTimeout(function(){
+      try{liff.closeWindow();}catch(e){}
+    },2000);
+  };
+  img.src=GAS_URL+'?page=save_barcode&userId='+globalUserId+'&barcode='+encodeURIComponent(code);
+}
+
 window.addEventListener('message',function(e){
-  if(e.data==='closeLiff'){
-    if(typeof liff!=='undefined'){liff.closeWindow();}
-  }
+  if(e.data==='closeLiff'){try{liff.closeWindow();}catch(e){}}
 });
 </script>
 </body>

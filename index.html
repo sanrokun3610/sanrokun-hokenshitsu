@@ -49,6 +49,7 @@ iframe{width:100%;height:100vh;border:none;display:none;}
 
 <div class="section-label">📷 実物カードをお持ちの方</div>
 <div id="reader"></div>
+<div id="fileReader"></div>
 <div class="status" id="status"></div>
 <button class="btn btn-primary" id="startBtn">📷 カメラでスキャン</button>
 <button class="btn btn-danger" id="stopBtn" style="display:none;">⏹ カメラを停止</button>
@@ -177,44 +178,23 @@ document.getElementById('fileInput').addEventListener('change',function(e){
   if(!file)return;
   document.getElementById('errorBox').style.display='none';
   document.getElementById('status').textContent='画像を解析中...';
-  dbg.textContent='スクショ解析開始';
+  dbg.textContent='ファイル選択: '+file.name+' ('+Math.round(file.size/1024)+'KB)';
 
-  var reader=new FileReader();
-  reader.onload=function(ev){
-    var img=new Image();
-    img.onload=function(){
-      var canvas=document.createElement('canvas');
-      canvas.width=img.width;
-      canvas.height=Math.floor(img.height*0.25);
-      var ctx=canvas.getContext('2d');
-      ctx.drawImage(img,0,0,img.width,canvas.height,0,0,canvas.width,canvas.height);
-      canvas.toBlob(function(blob){
-        var croppedFile=new File([blob],'cropped.png',{type:'image/png'});
-        var h=new Html5Qrcode('reader');
-        dbg.textContent='上部1/4でスキャン中...';
-        h.scanFile(croppedFile,true).then(function(decodedText){
-          document.getElementById('status').textContent='';
-          dbg.textContent='上部1/4で成功:'+decodedText;
-          registerBarcode(decodedText);
-        }).catch(function(){
-          dbg.textContent='上部1/4失敗→全体でリトライ';
-          h.scanFile(file,true).then(function(decodedText){
-            document.getElementById('status').textContent='';
-            dbg.textContent='全体で成功:'+decodedText;
-            registerBarcode(decodedText);
-          }).catch(function(){
-            document.getElementById('status').textContent='';
-            document.getElementById('errorBox').textContent='バーコードを検出できませんでした。手入力をお試しください。';
-            document.getElementById('errorBox').style.display='block';
-            document.getElementById('manualArea').style.display='block';
-            dbg.textContent='全体でも失敗';
-          });
-        });
-      },'image/png');
-    };
-    img.src=ev.target.result;
-  };
-  reader.readAsDataURL(file);
+  // 別のdiv要素でスキャン（カメラ用readerと競合しないように）
+  var fileScanner=new Html5Qrcode('fileReader');
+  dbg.textContent+=' → スキャン開始';
+
+  fileScanner.scanFile(file,true).then(function(decodedText){
+    document.getElementById('status').textContent='';
+    dbg.textContent+=' → 成功:'+decodedText;
+    registerBarcode(decodedText);
+  }).catch(function(err){
+    dbg.textContent+=' → 失敗:'+err;
+    document.getElementById('status').textContent='';
+    document.getElementById('errorBox').textContent='バーコードを検出できませんでした。手入力をお試しください。';
+    document.getElementById('errorBox').style.display='block';
+    document.getElementById('manualArea').style.display='block';
+  });
 });
 
 document.getElementById('manualBtn').addEventListener('click',function(){

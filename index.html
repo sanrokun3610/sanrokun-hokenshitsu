@@ -76,22 +76,37 @@ var tab=params.get('tab')||'records';
 var globalUserId='';
 var scanner=null;
 
-liff.init({liffId:LIFF_ID}).then(function(){
-  return liff.getProfile();
-}).then(function(profile){
-  globalUserId=profile.userId;
-  if(tab==='scan'){showScanPage();}
-  else{showIframe(profile.userId);}
-}).catch(function(err){
-  var userId=params.get('userId');
-  if(userId){
-    globalUserId=userId;
+// 管理画面モード（LIFFなしでiframe直接表示）
+if(tab==='admin'){
+  var adminKey=params.get('key')||'';
+  var adminPage=params.get('adminPage')||'admin';
+  var adminUserId=params.get('userId')||'';
+  var adminSearch=params.get('search')||'';
+  var iframeUrl=GAS_URL+'?page='+adminPage+'&key='+adminKey;
+  if(adminUserId)iframeUrl+='&userId='+adminUserId;
+  if(adminSearch)iframeUrl+='&search='+adminSearch;
+  document.getElementById('app').src=iframeUrl;
+  document.getElementById('app').style.display='block';
+  document.getElementById('loading').style.display='none';
+}else{
+  // 通常のLIFFモード
+  liff.init({liffId:LIFF_ID}).then(function(){
+    return liff.getProfile();
+  }).then(function(profile){
+    globalUserId=profile.userId;
     if(tab==='scan'){showScanPage();}
-    else{showIframe(userId);}
-  }else{
-    document.getElementById('loading').innerHTML='<div>LINEから開いてください</div>';
-  }
-});
+    else{showIframe(profile.userId);}
+  }).catch(function(err){
+    var userId=params.get('userId');
+    if(userId){
+      globalUserId=userId;
+      if(tab==='scan'){showScanPage();}
+      else{showIframe(userId);}
+    }else{
+      document.getElementById('loading').innerHTML='<div>LINEから開いてください</div>';
+    }
+  });
+}
 
 function showIframe(userId){
   document.getElementById('app').src=GAS_URL+'?page='+tab+'&userId='+userId;
@@ -156,13 +171,11 @@ document.getElementById('manualSubmit').addEventListener('click',function(){
 function registerBarcode(rawCode){
   try{if(scanner)scanner.stop();}catch(e){}
   var code=extractCode(rawCode);
-
   if(!code){
     document.getElementById('errorBox').textContent='正しい会員番号を入力してください。';
     document.getElementById('errorBox').style.display='block';
     return;
   }
-
   document.getElementById('startBtn').style.display='none';
   document.getElementById('stopBtn').style.display='none';
   document.getElementById('errorBox').style.display='none';
@@ -170,12 +183,9 @@ function registerBarcode(rawCode){
   document.querySelector('.manual-area').style.display='none';
   document.getElementById('resultBox').style.display='block';
   document.getElementById('memberNo').textContent='登録が完了しました';
-
-  var saveUrl=GAS_URL+'?page=save_barcode&userId='+globalUserId+'&barcode='+encodeURIComponent(code);
   var xhr=new XMLHttpRequest();
-  xhr.open('GET',saveUrl,true);
+  xhr.open('GET',GAS_URL+'?page=save_barcode&userId='+globalUserId+'&barcode='+encodeURIComponent(code),true);
   xhr.send();
-
   setTimeout(function(){
     try{liff.closeWindow();}catch(e){}
   },3000);

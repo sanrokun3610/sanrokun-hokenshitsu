@@ -30,6 +30,15 @@ iframe{width:100%;height:100vh;border:none;display:none;}
 .manual-area input{width:100%;padding:14px;border:2px solid #e5e5e5;border-radius:8px;font-size:18px;text-align:center;margin-bottom:12px;}
 .status{text-align:center;font-size:13px;color:#666;margin:8px 0;}
 .divider{border:none;border-top:1px solid #e5e5e5;margin:16px 0;}
+.login-page{display:none;min-height:100vh;display:flex;align-items:center;justify-content:center;}
+.login-card{background:#fff;border-radius:20px;padding:40px 32px;max-width:360px;width:100%;box-shadow:0 4px 12px rgba(0,0,0,0.1);text-align:center;}
+.login-card h2{color:#166534;margin-bottom:8px;}
+.login-card p{color:#888;font-size:13px;margin-bottom:24px;}
+.login-card input{width:100%;padding:14px;border:2px solid #e5e5e5;border-radius:10px;font-size:16px;margin-bottom:12px;outline:none;}
+.login-card input:focus{border-color:#22c55e;}
+.login-card button{width:100%;padding:14px;background:#22c55e;color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:bold;cursor:pointer;}
+.login-card button:hover{background:#16a34a;}
+.login-error{color:#dc2626;font-size:13px;margin-top:12px;display:none;}
 </style>
 </head>
 <body>
@@ -38,6 +47,17 @@ iframe{width:100%;height:100vh;border:none;display:none;}
 <div>読み込み中...</div>
 </div>
 <iframe id="app"></iframe>
+<div id="loginPage" style="display:none;">
+<div class="login-card">
+<div style="font-size:48px;margin-bottom:12px;">🌿</div>
+<h2>管理画面ログイン</h2>
+<p>サンロくんのほけんしつ</p>
+<input type="text" id="loginId" placeholder="ログインID" autocomplete="username">
+<input type="password" id="loginPw" placeholder="パスワード" autocomplete="current-password">
+<button id="loginBtn">ログイン</button>
+<div class="login-error" id="loginError">IDまたはパスワードが違います</div>
+</div>
+</div>
 <div class="scan-page" id="scanPage">
 <div class="scan-card">
 <div class="scan-icon">💳</div>
@@ -72,33 +92,56 @@ var globalUserId='';
 var scanner=null;
 
 if(tab==='admin'){
-  var key=params.get('key')||'';
-  document.getElementById('app').src=GAS_URL+'?page=admin&key='+key;
-  document.getElementById('app').style.display='block';
   document.getElementById('loading').style.display='none';
+  // URLにkey（セッションキー）がある場合は直接iframe
+  var key=params.get('key')||'';
+  var loginId=params.get('loginId')||'';
+  var loginPw=params.get('loginPw')||'';
+  if(key){
+    document.getElementById('app').src=GAS_URL+'?page=admin&key='+encodeURIComponent(key);
+    document.getElementById('app').style.display='block';
+  }else if(loginId&&loginPw){
+    document.getElementById('app').src=GAS_URL+'?page=admin&loginId='+encodeURIComponent(loginId)+'&loginPw='+encodeURIComponent(loginPw);
+    document.getElementById('app').style.display='block';
+  }else{
+    document.getElementById('loginPage').style.display='flex';
+  }
 }else if(tab==='scan'){
-  liff.init({liffId:LIFF_ID}).then(function(){
-    return liff.getProfile();
-  }).then(function(p){
-    globalUserId=p.userId;
-    showScanPage();
+  liff.init({liffId:LIFF_ID}).then(function(){return liff.getProfile();}).then(function(p){
+    globalUserId=p.userId;showScanPage();
   }).catch(function(){
     var u=params.get('userId');
     if(u){globalUserId=u;showScanPage();}
     else{document.getElementById('loading').innerHTML='<div>LINEから開いてください</div>';}
   });
 }else{
-  liff.init({liffId:LIFF_ID}).then(function(){
-    return liff.getProfile();
-  }).then(function(p){
-    globalUserId=p.userId;
-    showIframe(p.userId);
+  liff.init({liffId:LIFF_ID}).then(function(){return liff.getProfile();}).then(function(p){
+    globalUserId=p.userId;showIframe(p.userId);
   }).catch(function(){
     var u=params.get('userId');
     if(u){globalUserId=u;showIframe(u);}
     else{document.getElementById('loading').innerHTML='<div>LINEから開いてください</div>';}
   });
 }
+
+// 管理画面ログイン
+document.getElementById('loginBtn').addEventListener('click',function(){
+  var id=document.getElementById('loginId').value.trim();
+  var pw=document.getElementById('loginPw').value.trim();
+  if(!id||!pw){return;}
+  document.getElementById('loginPage').style.display='none';
+  document.getElementById('loading').style.display='flex';
+  document.getElementById('app').src=GAS_URL+'?page=admin&loginId='+encodeURIComponent(id)+'&loginPw='+encodeURIComponent(pw);
+  document.getElementById('app').style.display='block';
+  document.getElementById('loading').style.display='none';
+});
+// Enterキーでログイン
+document.getElementById('loginPw').addEventListener('keydown',function(e){
+  if(e.key==='Enter'){document.getElementById('loginBtn').click();}
+});
+document.getElementById('loginId').addEventListener('keydown',function(e){
+  if(e.key==='Enter'){document.getElementById('loginPw').focus();}
+});
 
 function showIframe(userId){
   document.getElementById('app').src=GAS_URL+'?page='+tab+'&userId='+userId;
@@ -115,7 +158,6 @@ function extractCode(r){
   if(d.length===24)return d.substring(0,14);
   return null;
 }
-
 document.getElementById('startBtn').addEventListener('click',function(){
   document.getElementById('status').textContent='カメラ起動中...';
   scanner=new Html5Qrcode('reader');

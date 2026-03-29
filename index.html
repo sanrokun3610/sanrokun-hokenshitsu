@@ -71,14 +71,12 @@ var tab=params.get('tab')||'records';
 var globalUserId='';
 var scanner=null;
 
-// 管理画面モード（LIFF不要）
 if(tab==='admin'){
   var key=params.get('key')||'';
   document.getElementById('app').src=GAS_URL+'?page=admin&key='+key;
   document.getElementById('app').style.display='block';
   document.getElementById('loading').style.display='none';
 }else if(tab==='scan'){
-  // バーコードスキャンモード
   liff.init({liffId:LIFF_ID}).then(function(){
     return liff.getProfile();
   }).then(function(p){
@@ -90,7 +88,6 @@ if(tab==='admin'){
     else{document.getElementById('loading').innerHTML='<div>LINEから開いてください</div>';}
   });
 }else{
-  // 通常LIFFモード
   liff.init({liffId:LIFF_ID}).then(function(){
     return liff.getProfile();
   }).then(function(p){
@@ -134,7 +131,7 @@ document.getElementById('startBtn').addEventListener('click',function(){
     document.getElementById('status').textContent='バーコードをかざしてください';
     document.getElementById('startBtn').style.display='none';
     document.getElementById('stopBtn').style.display='block';
-  }).catch(function(e){document.getElementById('status').textContent='カメラ起動失敗';});
+  }).catch(function(){document.getElementById('status').textContent='カメラ起動失敗';});
 });
 document.getElementById('stopBtn').addEventListener('click',function(){
   if(scanner)try{scanner.stop();}catch(e){}

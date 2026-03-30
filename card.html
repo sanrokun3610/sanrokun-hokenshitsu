@@ -15,6 +15,7 @@ body{font-family:'Noto Sans JP','Inter',-apple-system,sans-serif;background:#f0f
 .header::before{content:'';position:absolute;top:-50%;right:-30%;width:300px;height:300px;background:rgba(255,255,255,.06);border-radius:50%;}
 .header::after{content:'';position:absolute;bottom:-40%;left:-20%;width:250px;height:250px;background:rgba(255,255,255,.04);border-radius:50%;}
 .avatar{width:120px;height:120px;border-radius:50%;border:4px solid rgba(255,255,255,.3);object-fit:cover;margin-bottom:16px;background:#e5e5e5;display:flex;align-items:center;justify-content:center;margin-left:auto;margin-right:auto;font-size:48px;color:#fff;position:relative;z-index:1;}
+@media(min-width:441px){.avatar{width:160px;height:160px;}}
 .name{font-size:28px;font-weight:900;color:#fff;letter-spacing:2px;position:relative;z-index:1;}
 .name-en{font-size:13px;color:rgba(255,255,255,.7);font-weight:400;letter-spacing:3px;margin-top:4px;position:relative;z-index:1;}
 .title{font-size:14px;color:rgba(255,255,255,.9);margin-top:12px;position:relative;z-index:1;}
@@ -102,7 +103,10 @@ body{font-family:'Noto Sans JP','Inter',-apple-system,sans-serif;background:#f0f
 
 <!-- ヘッダー -->
 <div class="header">
-<img src="avatar.png" alt="木村 敦" class="avatar">
+<picture>
+  <source media="(min-width:441px)" srcset="iPad_avater.png">
+  <img src="iPhone_avater.png" alt="木村 敦" class="avatar">
+</picture>
 <div class="name">木村 敦</div>
 <div class="name-en">ATSUSHI KIMURA</div>
 <div class="title">薬剤師 / 医療情報技師 / Apple Developer</div>

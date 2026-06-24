@@ -281,9 +281,8 @@ function submitRegister(){
   setTimeout(function(){try{liff.closeWindow();}catch(e){}},2500);
 }
 function extractCode(r){
-  var d=r.replace(/[^0-9]/g,'');
-  if(d.length===16)return d;
-  if(d.length===24)return d.substring(0,14);
+  var d=r.replace(/[０-９]/g,function(c){return String.fromCharCode(c.charCodeAt(0)-0xFEE0);}).replace(/[^0-9]/g,'');
+  if(d.length>=16)return d.substring(0,16);
   return null;
 }
 document.getElementById('startBtn').addEventListener('click',function(){

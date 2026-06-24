@@ -38,6 +38,28 @@ iframe{width:100%;height:100vh;border:none;display:none;}
 .login-card input:focus{border-color:#22c55e;}
 .login-card button{width:100%;padding:14px;background:#22c55e;color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:bold;cursor:pointer;}
 .login-card button:hover{background:#16a34a;}
+.reg-page{display:none;min-height:100vh;padding:16px;}
+.reg-card{background:#fff;border-radius:16px;padding:20px 18px 28px;max-width:440px;margin:0 auto;box-shadow:0 2px 8px rgba(0,0,0,0.1);}
+.reg-card h2{color:#166534;font-size:18px;text-align:center;margin-bottom:4px;}
+.reg-card .sub{font-size:12px;color:#888;text-align:center;margin-bottom:8px;}
+.reg-label{font-size:14px;font-weight:bold;color:#333;margin:18px 0 8px;}
+.chip-group{display:flex;flex-wrap:wrap;gap:8px;}
+.chip{padding:9px 14px;border:2px solid #e5e5e5;border-radius:999px;font-size:14px;cursor:pointer;background:#fff;color:#333;-webkit-user-select:none;user-select:none;}
+.chip.sel{border-color:#22c55e;background:#f0fdf4;color:#166534;font-weight:bold;}
+.hw-row{display:flex;gap:10px;align-items:center;}
+.hw-row .unit{font-size:14px;color:#666;}
+.hw-row input{width:100%;padding:12px;border:2px solid #e5e5e5;border-radius:8px;font-size:16px;text-align:center;}
+.goal-section-title{font-size:12px;color:#888;margin:12px 0 6px;font-weight:bold;}
+.goal-group{display:flex;flex-direction:column;gap:6px;}
+.goal-chip{padding:11px 14px;border:2px solid #e5e5e5;border-radius:10px;font-size:14px;cursor:pointer;background:#fff;color:#333;display:flex;align-items:center;gap:8px;-webkit-user-select:none;user-select:none;}
+.goal-chip.sel{border-color:#22c55e;background:#f0fdf4;color:#166534;font-weight:bold;}
+.goal-chip .ck{width:20px;height:20px;border:2px solid #ccc;border-radius:5px;flex:none;display:flex;align-items:center;justify-content:center;font-size:13px;}
+.goal-chip.sel .ck{background:#22c55e;border-color:#22c55e;color:#fff;}
+.goal-chip.dim{opacity:0.4;}
+.meal-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.meal-row>span{width:40px;font-size:14px;}
+.reg-card select{flex:1;padding:11px;border:2px solid #e5e5e5;border-radius:8px;font-size:15px;background:#fff;}
+.goal-count{font-size:12px;color:#888;font-weight:normal;}
 </style>
 </head>
 <body>
@@ -81,6 +103,34 @@ iframe{width:100%;height:100vh;border:none;display:none;}
 </div>
 </div>
 </div>
+<div class="reg-page" id="registerPage">
+<div class="reg-card">
+<div class="scan-icon">🌿</div>
+<h2>会員登録</h2>
+<div class="sub">あなたに合ったアドバイスのために教えてね</div>
+<div class="reg-label">年齢</div>
+<div class="chip-group" id="ageGroup"></div>
+<div class="reg-label">性別</div>
+<div class="chip-group" id="genderGroup"></div>
+<div class="reg-label">身長・体重</div>
+<div class="hw-row">
+<input type="text" id="regHeight" inputmode="decimal" placeholder="身長"><span class="unit">cm</span>
+<input type="text" id="regWeight" inputmode="decimal" placeholder="体重"><span class="unit">kg</span>
+</div>
+<div class="reg-label">目的 <span class="goal-count" id="goalCount">（最大3つ）</span></div>
+<div class="goal-section-title">🌿 生活改善・予防</div>
+<div class="goal-group" id="goalsLifestyle"></div>
+<div class="goal-section-title">💊 疾患管理・服薬中</div>
+<div class="goal-group" id="goalsMedical"></div>
+<div class="reg-label">食事時間</div>
+<div class="meal-row"><span>🌅 朝</span><select id="regMb"></select></div>
+<div class="meal-row"><span>☀️ 昼</span><select id="regMl"></select></div>
+<div class="meal-row"><span>🌙 夜</span><select id="regMd"></select></div>
+<button class="btn btn-primary" id="regSubmit" style="margin-top:20px;">登録する</button>
+<div class="error-box" id="regError"></div>
+<div class="result-box" id="regResult"><p>✅ 登録完了！</p><p style="margin-top:8px;font-size:13px;color:#666;">LINEに戻って確認してね。自動で閉じます...</p></div>
+</div>
+</div>
 <script>
 var LIFF_ID='2009608282-IAzNrGIA';
 var GAS_URL='https://script.google.com/macros/s/AKfycbwqJPueCoeMtpY8WcCAHQjYXIROi8VAaqsbZmuf2iUQ65MG6teaJOC2CwZiGrUNlsd6/exec';
@@ -109,6 +159,14 @@ if(tab==='admin'){
   }).catch(function(){
     var u=params.get('userId');
     if(u){globalUserId=u;showScanPage();}
+    else{document.getElementById('loading').innerHTML='<div>LINEから開いてください</div>';}
+  });
+}else if(tab==='register'){
+  liff.init({liffId:LIFF_ID}).then(function(){return liff.getProfile();}).then(function(p){
+    globalUserId=p.userId;showRegisterPage();
+  }).catch(function(){
+    var u=params.get('userId');
+    if(u){globalUserId=u;showRegisterPage();}
     else{document.getElementById('loading').innerHTML='<div>LINEから開いてください</div>';}
   });
 }else{
@@ -146,6 +204,81 @@ function showIframe(userId){
 function showScanPage(){
   document.getElementById('loading').style.display='none';
   document.getElementById('scanPage').style.display='block';
+}
+var REG_GOALS=[
+  {c:'diet',e:'🏃',n:'ダイエット・減量',cat:'l'},{c:'muscle',e:'💪',n:'筋力UP・ボディメイク',cat:'l'},
+  {c:'gut',e:'🌿',n:'腸活・便秘改善',cat:'l'},{c:'fatigue',e:'⚡',n:'疲労回復・スタミナ',cat:'l'},
+  {c:'immunity',e:'🛡',n:'免疫力アップ',cat:'l'},{c:'bone',e:'🦴',n:'骨を丈夫にしたい',cat:'l'},
+  {c:'cold',e:'🌡',n:'冷え性・血行改善',cat:'l'},{c:'health',e:'💚',n:'健康維持（全般）',cat:'l'},
+  {c:'diabetes',e:'🩸',n:'糖尿病の食事管理',cat:'m'},{c:'bp',e:'❤️',n:'高血圧の食事管理',cat:'m'},
+  {c:'lipid',e:'🫀',n:'脂質異常症の管理',cat:'m'},{c:'kidney',e:'🫘',n:'腎臓病の食事管理',cat:'m'},
+  {c:'anemia',e:'🔴',n:'貧血改善',cat:'m'},{c:'gout',e:'🦶',n:'痛風・高尿酸血症',cat:'m'},
+  {c:'maternal',e:'🤰',n:'妊娠中・授乳中の栄養',cat:'m'},{c:'frailty',e:'👴',n:'低栄養予防（フレイル）',cat:'m'}
+];
+var regSel={age:'',gender:'',goals:[]};
+function showRegisterPage(){
+  document.getElementById('loading').style.display='none';
+  document.getElementById('registerPage').style.display='block';
+  buildRegisterForm();
+}
+function buildRegisterForm(){
+  ['10代','20代','30代','40代','50代','60代','70代以上'].forEach(function(a){
+    var d=document.createElement('div');d.className='chip';d.textContent=a;
+    d.onclick=function(){regSel.age=a;[].forEach.call(document.querySelectorAll('#ageGroup .chip'),function(x){x.classList.remove('sel');});d.classList.add('sel');};
+    document.getElementById('ageGroup').appendChild(d);
+  });
+  ['男性','女性','その他'].forEach(function(g){
+    var d=document.createElement('div');d.className='chip';d.textContent=g;
+    d.onclick=function(){regSel.gender=g;[].forEach.call(document.querySelectorAll('#genderGroup .chip'),function(x){x.classList.remove('sel');});d.classList.add('sel');};
+    document.getElementById('genderGroup').appendChild(d);
+  });
+  REG_GOALS.forEach(function(g){
+    var d=document.createElement('div');d.className='goal-chip';
+    d.innerHTML='<span class="ck"></span><span>'+g.e+' '+g.n+'</span>';
+    d.onclick=function(){toggleGoal(g.c,d);};
+    document.getElementById(g.cat==='l'?'goalsLifestyle':'goalsMedical').appendChild(d);
+  });
+  fillSelect('regMb',['4時台','5時台','6時台','7時台','8時台','9時台']);
+  fillSelect('regMl',['11時台','12時台','13時台','14時台']);
+  fillSelect('regMd',['17時台','18時台','19時台','20時台','21時以降']);
+  document.getElementById('regSubmit').onclick=submitRegister;
+}
+function fillSelect(id,opts){
+  var s=document.getElementById(id);
+  var o0=document.createElement('option');o0.value='';o0.textContent='選んでね';s.appendChild(o0);
+  opts.forEach(function(t){var o=document.createElement('option');o.value=t;o.textContent=t;s.appendChild(o);});
+  var on=document.createElement('option');on.value='なし';on.textContent='食べない';s.appendChild(on);
+}
+function toggleGoal(c,el){
+  var i=regSel.goals.indexOf(c);
+  if(i>=0){regSel.goals.splice(i,1);el.classList.remove('sel');el.querySelector('.ck').textContent='';}
+  else{if(regSel.goals.length>=3)return;regSel.goals.push(c);el.classList.add('sel');el.querySelector('.ck').textContent='✓';}
+  document.getElementById('goalCount').textContent='（'+regSel.goals.length+'/3）';
+  var full=regSel.goals.length>=3;
+  [].forEach.call(document.querySelectorAll('.goal-chip'),function(x){if(!x.classList.contains('sel'))x.classList.toggle('dim',full);});
+}
+function showRegErr(m){var e=document.getElementById('regError');e.textContent='⚠ '+m;e.style.display='block';try{e.scrollIntoView({block:'center'});}catch(x){}return false;}
+function submitRegister(){
+  document.getElementById('regError').style.display='none';
+  var h=document.getElementById('regHeight').value.replace(/[^0-9.]/g,'');
+  var w=document.getElementById('regWeight').value.replace(/[^0-9.]/g,'');
+  var mb=document.getElementById('regMb').value,ml=document.getElementById('regMl').value,md=document.getElementById('regMd').value;
+  if(!regSel.age)return showRegErr('年齢を選んでね');
+  if(!regSel.gender)return showRegErr('性別を選んでね');
+  if(!h||+h<100||+h>250)return showRegErr('身長を正しく入力してね（cm）');
+  if(!w||+w<20||+w>200)return showRegErr('体重を正しく入力してね（kg）');
+  if(regSel.goals.length<1)return showRegErr('目的を1つ以上選んでね');
+  if(!mb||!ml||!md)return showRegErr('食事時間（朝・昼・夜）を選んでね');
+  var qs='?page=save_profile&userId='+encodeURIComponent(globalUserId)+
+    '&age='+encodeURIComponent(regSel.age)+'&gender='+encodeURIComponent(regSel.gender)+
+    '&height='+encodeURIComponent(h)+'&weight='+encodeURIComponent(w)+
+    '&goals='+encodeURIComponent(regSel.goals.join(','))+
+    '&mb='+encodeURIComponent(mb)+'&ml='+encodeURIComponent(ml)+'&md='+encodeURIComponent(md);
+  var xhr=new XMLHttpRequest();xhr.open('GET',GAS_URL+qs,true);xhr.send();
+  document.getElementById('regSubmit').style.display='none';
+  document.getElementById('regResult').style.display='block';
+  try{document.getElementById('regResult').scrollIntoView({block:'center'});}catch(x){}
+  setTimeout(function(){try{liff.closeWindow();}catch(e){}},2500);
 }
 function extractCode(r){
   var d=r.replace(/[^0-9]/g,'');

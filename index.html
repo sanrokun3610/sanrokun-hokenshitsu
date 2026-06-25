@@ -108,8 +108,22 @@ iframe{width:100%;height:100vh;border:none;display:none;}
 <div class="scan-icon">🌿</div>
 <h2>会員登録</h2>
 <div class="sub">あなたに合ったアドバイスのために教えてね</div>
-<div class="reg-label">年齢</div>
-<div class="chip-group" id="ageGroup"></div>
+<div class="reg-label">生年月日</div>
+<div id="dob-triple" style="display:flex;gap:8px;align-items:flex-end;margin-bottom:4px">
+  <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+    <select id="dobYear" style="padding:10px 4px;font-size:15px;border:2px solid #fcd34d;border-radius:8px;background:#fffbeb;color:#1f2937;min-height:48px;width:100px;text-align:center"></select>
+    <span style="font-size:12px;color:#666;font-weight:600">年</span>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+    <select id="dobMonth" style="padding:10px 4px;font-size:15px;border:2px solid #fcd34d;border-radius:8px;background:#fffbeb;color:#1f2937;min-height:48px;width:70px;text-align:center"></select>
+    <span style="font-size:12px;color:#666;font-weight:600">月</span>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+    <select id="dobDay" style="padding:10px 4px;font-size:15px;border:2px solid #fcd34d;border-radius:8px;background:#fffbeb;color:#1f2937;min-height:48px;width:70px;text-align:center"></select>
+    <span style="font-size:12px;color:#666;font-weight:600">日</span>
+  </div>
+</div>
+<div id="dobAgePreview" style="display:none;padding:8px 12px;background:#f0fdf4;border-left:4px solid #16a34a;border-radius:0 8px 8px 0;font-size:14px;color:#166534;font-weight:600;margin-bottom:4px"></div>
 <div class="reg-label">性別</div>
 <div class="chip-group" id="genderGroup"></div>
 <div class="reg-label">身長・体重</div>
@@ -234,18 +248,43 @@ var REG_GOALS=[
   {c:'anemia',e:'🔴',n:'貧血改善',cat:'m'},{c:'gout',e:'🦶',n:'痛風・高尿酸血症',cat:'m'},
   {c:'maternal',e:'🤰',n:'妊娠中・授乳中の栄養',cat:'m'},{c:'frailty',e:'👴',n:'低栄養予防（フレイル）',cat:'m'}
 ];
-var regSel={age:'',gender:'',goals:[]};
+var regSel={gender:'',goals:[]};
 function showRegisterPage(){
   document.getElementById('loading').style.display='none';
   document.getElementById('registerPage').style.display='block';
   buildRegisterForm();
 }
 function buildRegisterForm(){
-  ['10代','20代','30代','40代','50代','60代','70代以上'].forEach(function(a){
-    var d=document.createElement('div');d.className='chip';d.textContent=a;
-    d.onclick=function(){regSel.age=a;[].forEach.call(document.querySelectorAll('#ageGroup .chip'),function(x){x.classList.remove('sel');});d.classList.add('sel');};
-    document.getElementById('ageGroup').appendChild(d);
-  });
+  // 生年月日: 年（西暦 1930〜今年、降順）
+  var nowY=new Date().getFullYear();
+  var ys=document.getElementById('dobYear');
+  var yo=document.createElement('option');yo.value='';yo.textContent='年';ys.appendChild(yo);
+  for(var y=nowY;y>=1930;y--){var o=document.createElement('option');o.value=String(y);o.textContent=String(y);ys.appendChild(o);}
+  // 月（1〜12）
+  var ms=document.getElementById('dobMonth');
+  var mo=document.createElement('option');mo.value='';mo.textContent='月';ms.appendChild(mo);
+  for(var m=1;m<=12;m++){var om=document.createElement('option');om.value=String(m);om.textContent=String(m);ms.appendChild(om);}
+  // 日（1〜31）
+  var ds=document.getElementById('dobDay');
+  var doo=document.createElement('option');doo.value='';doo.textContent='日';ds.appendChild(doo);
+  for(var dd=1;dd<=31;dd++){var od=document.createElement('option');od.value=String(dd);od.textContent=String(dd);ds.appendChild(od);}
+  // 年齢プレビュー
+  function updateDobPreview(){
+    var yv=document.getElementById('dobYear').value;
+    var mv=document.getElementById('dobMonth').value;
+    var dv=document.getElementById('dobDay').value;
+    var prev=document.getElementById('dobAgePreview');
+    if(!yv||!mv||!dv){prev.style.display='none';return;}
+    var today=new Date();var birth=new Date(+yv,+mv-1,+dv);
+    var age=today.getFullYear()-birth.getFullYear();
+    var bm=today.getMonth()-birth.getMonth();
+    if(bm<0||(bm===0&&today.getDate()<birth.getDate()))age--;
+    if(age<0||age>130){prev.style.display='none';return;}
+    prev.textContent='年齢（自動計算）: '+age+'歳';prev.style.display='block';
+  }
+  document.getElementById('dobYear').onchange=updateDobPreview;
+  document.getElementById('dobMonth').onchange=updateDobPreview;
+  document.getElementById('dobDay').onchange=updateDobPreview;
   ['男性','女性','その他'].forEach(function(g){
     var d=document.createElement('div');d.className='chip';d.textContent=g;
     d.onclick=function(){regSel.gender=g;[].forEach.call(document.querySelectorAll('#genderGroup .chip'),function(x){x.classList.remove('sel');});d.classList.add('sel');};
@@ -281,14 +320,20 @@ function submitRegister(){
   var h=document.getElementById('regHeight').value.replace(/[^0-9.]/g,'');
   var w=document.getElementById('regWeight').value.replace(/[^0-9.]/g,'');
   var mb=document.getElementById('regMb').value,ml=document.getElementById('regMl').value,md=document.getElementById('regMd').value;
-  if(!regSel.age)return showRegErr('年齢を選んでね');
+  var dobY=document.getElementById('dobYear').value;
+  var dobM=document.getElementById('dobMonth').value;
+  var dobD=document.getElementById('dobDay').value;
+  if(!dobY||!dobM||!dobD)return showRegErr('生年月日（年・月・日）を選んでね');
+  var mm=dobM<10?'0'+dobM:''+dobM;
+  var dd=dobD<10?'0'+dobD:''+dobD;
+  var birthdate=dobY+'-'+mm+'-'+dd;
   if(!regSel.gender)return showRegErr('性別を選んでね');
   if(!h||+h<100||+h>250)return showRegErr('身長を正しく入力してね（cm）');
   if(!w||+w<20||+w>200)return showRegErr('体重を正しく入力してね（kg）');
   if(regSel.goals.length<1)return showRegErr('目的を1つ以上選んでね');
   if(!mb||!ml||!md)return showRegErr('食事時間（朝・昼・夜）を選んでね');
   var qs='?page=save_profile&idToken='+encodeURIComponent(globalIdToken)+'&userId='+encodeURIComponent(globalUserId)+
-    '&age='+encodeURIComponent(regSel.age)+'&gender='+encodeURIComponent(regSel.gender)+
+    '&birthdate='+encodeURIComponent(birthdate)+'&gender='+encodeURIComponent(regSel.gender)+
     '&height='+encodeURIComponent(h)+'&weight='+encodeURIComponent(w)+
     '&goals='+encodeURIComponent(regSel.goals.join(','))+
     '&mb='+encodeURIComponent(mb)+'&ml='+encodeURIComponent(ml)+'&md='+encodeURIComponent(md);

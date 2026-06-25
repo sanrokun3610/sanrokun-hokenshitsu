@@ -160,6 +160,7 @@ if(tab==='admin'){
     return liff.getProfile();
   }).then(function(p){
     globalUserId=p.userId;
+    if(params.get('diag')==='1'){showDiag();}
     if(!globalIdToken){document.getElementById('loading').innerHTML='<div>ログイン情報を取得できませんでした。LINEから開き直してください。</div>';return;}
     showScanPage();
   }).catch(function(){
@@ -171,6 +172,7 @@ if(tab==='admin'){
     return liff.getProfile();
   }).then(function(p){
     globalUserId=p.userId;
+    if(params.get('diag')==='1'){showDiag();}
     if(!globalIdToken){document.getElementById('loading').innerHTML='<div>ログイン情報を取得できませんでした。LINEから開き直してください。</div>';return;}
     showRegisterPage();
   }).catch(function(){
@@ -211,6 +213,16 @@ function showIframe(userId){
 function showScanPage(){
   document.getElementById('loading').style.display='none';
   document.getElementById('scanPage').style.display='block';
+}
+// 診断バナー: ?diag=1 のときだけ、取得した idToken の実物(先頭+長さ)を表示。
+// openid スコープ確認用(旧LIFFには存在しない=新版を読んでいる証明にもなる)。
+function showDiag(){
+  var b=document.createElement('div');
+  b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;padding:10px;text-align:center;font-family:monospace;font-size:12px;line-height:1.5;color:#fff;background:'+(globalIdToken?'#166534':'#b91c1c');
+  b.textContent=globalIdToken
+    ? '🔎 idToken取得OK ✅  先頭:'+globalIdToken.slice(0,14)+'…  長さ:'+globalIdToken.length+'字'
+    : '🔎 idToken 未取得 ❌  openidスコープOFFの可能性';
+  document.body.appendChild(b);
 }
 var REG_GOALS=[
   {c:'diet',e:'🏃',n:'ダイエット・減量',cat:'l'},{c:'muscle',e:'💪',n:'筋力UP・ボディメイク',cat:'l'},

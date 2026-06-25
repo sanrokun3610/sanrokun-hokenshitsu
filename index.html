@@ -260,6 +260,7 @@ function buildRegisterForm(){
   var ys=document.getElementById('dobYear');
   var yo=document.createElement('option');yo.value='';yo.textContent='年';ys.appendChild(yo);
   for(var y=nowY;y>=1930;y--){var o=document.createElement('option');o.value=String(y);o.textContent=String(y);ys.appendChild(o);}
+  ys.value='1980';
   // 月（1〜12）
   var ms=document.getElementById('dobMonth');
   var mo=document.createElement('option');mo.value='';mo.textContent='月';ms.appendChild(mo);

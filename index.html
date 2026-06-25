@@ -137,6 +137,7 @@ var GAS_URL='https://script.google.com/macros/s/AKfycbwqJPueCoeMtpY8WcCAHQjYXIRO
 var params=new URLSearchParams(window.location.search);
 var tab=params.get('tab')||'records';
 var globalUserId='';
+var globalIdToken='';
 var scanner=null;
 
 if(tab==='admin'){
@@ -154,20 +155,26 @@ if(tab==='admin'){
     document.getElementById('loginPage').style.display='flex';
   }
 }else if(tab==='scan'){
-  liff.init({liffId:LIFF_ID}).then(function(){return liff.getProfile();}).then(function(p){
-    globalUserId=p.userId;showScanPage();
+  liff.init({liffId:LIFF_ID}).then(function(){
+    globalIdToken=liff.getIDToken()||'';
+    return liff.getProfile();
+  }).then(function(p){
+    globalUserId=p.userId;
+    if(!globalIdToken){document.getElementById('loading').innerHTML='<div>ログイン情報を取得できませんでした。LINEから開き直してください。</div>';return;}
+    showScanPage();
   }).catch(function(){
-    var u=params.get('userId');
-    if(u){globalUserId=u;showScanPage();}
-    else{document.getElementById('loading').innerHTML='<div>LINEから開いてください</div>';}
+    document.getElementById('loading').innerHTML='<div>LINEから開いてください</div>';
   });
 }else if(tab==='register'){
-  liff.init({liffId:LIFF_ID}).then(function(){return liff.getProfile();}).then(function(p){
-    globalUserId=p.userId;showRegisterPage();
+  liff.init({liffId:LIFF_ID}).then(function(){
+    globalIdToken=liff.getIDToken()||'';
+    return liff.getProfile();
+  }).then(function(p){
+    globalUserId=p.userId;
+    if(!globalIdToken){document.getElementById('loading').innerHTML='<div>ログイン情報を取得できませんでした。LINEから開き直してください。</div>';return;}
+    showRegisterPage();
   }).catch(function(){
-    var u=params.get('userId');
-    if(u){globalUserId=u;showRegisterPage();}
-    else{document.getElementById('loading').innerHTML='<div>LINEから開いてください</div>';}
+    document.getElementById('loading').innerHTML='<div>LINEから開いてください</div>';
   });
 }else{
   liff.init({liffId:LIFF_ID}).then(function(){return liff.getProfile();}).then(function(p){
@@ -268,7 +275,7 @@ function submitRegister(){
   if(!w||+w<20||+w>200)return showRegErr('体重を正しく入力してね（kg）');
   if(regSel.goals.length<1)return showRegErr('目的を1つ以上選んでね');
   if(!mb||!ml||!md)return showRegErr('食事時間（朝・昼・夜）を選んでね');
-  var qs='?page=save_profile&userId='+encodeURIComponent(globalUserId)+
+  var qs='?page=save_profile&idToken='+encodeURIComponent(globalIdToken)+
     '&age='+encodeURIComponent(regSel.age)+'&gender='+encodeURIComponent(regSel.gender)+
     '&height='+encodeURIComponent(h)+'&weight='+encodeURIComponent(w)+
     '&goals='+encodeURIComponent(regSel.goals.join(','))+
@@ -333,7 +340,7 @@ function registerBarcode(raw){
   document.getElementById('resultBox').style.display='block';
   document.getElementById('memberNo').textContent='登録が完了しました';
   var xhr=new XMLHttpRequest();
-  xhr.open('GET',GAS_URL+'?page=save_barcode&userId='+globalUserId+'&barcode='+encodeURIComponent(code),true);
+  xhr.open('GET',GAS_URL+'?page=save_barcode&idToken='+encodeURIComponent(globalIdToken)+'&barcode='+encodeURIComponent(code),true);
   xhr.send();
   setTimeout(function(){try{liff.closeWindow();}catch(e){}},3000);
 }

@@ -275,7 +275,7 @@ function submitRegister(){
   if(!w||+w<20||+w>200)return showRegErr('体重を正しく入力してね（kg）');
   if(regSel.goals.length<1)return showRegErr('目的を1つ以上選んでね');
   if(!mb||!ml||!md)return showRegErr('食事時間（朝・昼・夜）を選んでね');
-  var qs='?page=save_profile&idToken='+encodeURIComponent(globalIdToken)+
+  var qs='?page=save_profile&idToken='+encodeURIComponent(globalIdToken)+'&userId='+encodeURIComponent(globalUserId)+
     '&age='+encodeURIComponent(regSel.age)+'&gender='+encodeURIComponent(regSel.gender)+
     '&height='+encodeURIComponent(h)+'&weight='+encodeURIComponent(w)+
     '&goals='+encodeURIComponent(regSel.goals.join(','))+
@@ -340,7 +340,7 @@ function registerBarcode(raw){
   document.getElementById('resultBox').style.display='block';
   document.getElementById('memberNo').textContent='登録が完了しました';
   var xhr=new XMLHttpRequest();
-  xhr.open('GET',GAS_URL+'?page=save_barcode&idToken='+encodeURIComponent(globalIdToken)+'&barcode='+encodeURIComponent(code),true);
+  xhr.open('GET',GAS_URL+'?page=save_barcode&idToken='+encodeURIComponent(globalIdToken)+'&userId='+encodeURIComponent(globalUserId)+'&barcode='+encodeURIComponent(code),true);
   xhr.send();
   setTimeout(function(){try{liff.closeWindow();}catch(e){}},3000);
 }

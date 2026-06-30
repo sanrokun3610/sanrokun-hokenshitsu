@@ -164,17 +164,14 @@ var scanner=null;
 if(tab==='admin'){
   document.getElementById('loading').style.display='none';
   var key=params.get('key')||'';
-  var loginId=params.get('loginId')||'';
-  var loginPw=params.get('loginPw')||'';
-  if(key){
-    document.getElementById('app').src=GAS_URL+'?page=admin&key='+encodeURIComponent(key);
-    document.getElementById('app').style.display='block';
-  }else if(loginId&&loginPw){
-    document.getElementById('app').src=GAS_URL+'?page=admin&loginId='+encodeURIComponent(loginId)+'&loginPw='+encodeURIComponent(loginPw);
-    document.getElementById('app').style.display='block';
-  }else{
-    document.getElementById('loginPage').style.display='flex';
-  }
+  // セキュリティ強化(2026-06)でGAS側がURL/GET経由のパスワード送信を拒否するようになったため、
+  // フロントでログインID/PWをGET送信せず、GASの認証画面(page=admin)をそのまま表示する。
+  // 実際のログインはGASが返すPOSTフォーム(adminLogin=1)が処理する。
+  // ※下部の #loginPage / loginBtn ハンドラはこの変更で使用されなくなった(残置・無害)。
+  var adminSrc=GAS_URL+'?page=admin';
+  if(key){adminSrc+='&key='+encodeURIComponent(key);}
+  document.getElementById('app').src=adminSrc;
+  document.getElementById('app').style.display='block';
 }else if(tab==='scan'){
   liff.init({liffId:LIFF_ID}).then(function(){
     globalIdToken=liff.getIDToken()||'';

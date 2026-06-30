@@ -30,14 +30,6 @@ iframe{width:100%;height:100vh;border:none;display:none;}
 .manual-area input{width:100%;padding:14px;border:2px solid #e5e5e5;border-radius:8px;font-size:18px;text-align:center;margin-bottom:12px;}
 .status{text-align:center;font-size:13px;color:#666;margin:8px 0;}
 .divider{border:none;border-top:1px solid #e5e5e5;margin:16px 0;}
-#loginPage{display:none;align-items:center;justify-content:center;min-height:100vh;padding:20px;}
-.login-card{background:#fff;border-radius:20px;padding:40px 32px;max-width:360px;width:100%;box-shadow:0 4px 12px rgba(0,0,0,0.1);text-align:center;}
-.login-card h2{color:#166534;margin-bottom:8px;}
-.login-card p{color:#888;font-size:13px;margin-bottom:24px;}
-.login-card input{width:100%;padding:14px;border:2px solid #e5e5e5;border-radius:10px;font-size:16px;margin-bottom:12px;outline:none;}
-.login-card input:focus{border-color:#22c55e;}
-.login-card button{width:100%;padding:14px;background:#22c55e;color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:bold;cursor:pointer;}
-.login-card button:hover{background:#16a34a;}
 .reg-page{display:none;min-height:100vh;padding:16px;}
 .reg-card{background:#fff;border-radius:16px;padding:20px 18px 28px;max-width:440px;margin:0 auto;box-shadow:0 2px 8px rgba(0,0,0,0.1);}
 .reg-card h2{color:#166534;font-size:18px;text-align:center;margin-bottom:4px;}
@@ -68,16 +60,8 @@ iframe{width:100%;height:100vh;border:none;display:none;}
 <div>読み込み中...</div>
 </div>
 <iframe id="app"></iframe>
-<div id="loginPage">
-<div class="login-card">
-<div style="font-size:48px;margin-bottom:12px;">🌿</div>
-<h2>管理画面ログイン</h2>
-<p>サンロくんのほけんしつ</p>
-<input type="text" id="loginId" placeholder="ログインID" autocomplete="username">
-<input type="password" id="loginPw" placeholder="パスワード" autocomplete="current-password">
-<button id="loginBtn">ログイン</button>
-</div>
-</div>
+<!-- 管理画面ログインフォームはGAS側(page=admin)が提供する。
+     フロントでパスワードを扱う自前フォームは廃止(GET送信によるURLパスワード露出を回避)。 -->
 <div class="scan-page" id="scanPage">
 <div class="scan-card">
 <div class="scan-icon">💳</div>
@@ -167,7 +151,6 @@ if(tab==='admin'){
   // セキュリティ強化(2026-06)でGAS側がURL/GET経由のパスワード送信を拒否するようになったため、
   // フロントでログインID/PWをGET送信せず、GASの認証画面(page=admin)をそのまま表示する。
   // 実際のログインはGASが返すPOSTフォーム(adminLogin=1)が処理する。
-  // ※下部の #loginPage / loginBtn ハンドラはこの変更で使用されなくなった(残置・無害)。
   var adminSrc=GAS_URL+'?page=admin';
   if(key){adminSrc+='&key='+encodeURIComponent(key);}
   document.getElementById('app').src=adminSrc;
@@ -205,23 +188,6 @@ if(tab==='admin'){
     else{document.getElementById('loading').innerHTML='<div>LINEから開いてください</div>';}
   });
 }
-
-document.getElementById('loginBtn').addEventListener('click',function(){
-  var id=document.getElementById('loginId').value.trim();
-  var pw=document.getElementById('loginPw').value.trim();
-  if(!id||!pw)return;
-  document.getElementById('loginPage').style.display='none';
-  document.getElementById('loading').style.display='flex';
-  document.getElementById('app').src=GAS_URL+'?page=admin&loginId='+encodeURIComponent(id)+'&loginPw='+encodeURIComponent(pw);
-  document.getElementById('app').style.display='block';
-  document.getElementById('loading').style.display='none';
-});
-document.getElementById('loginPw').addEventListener('keydown',function(e){
-  if(e.key==='Enter'){document.getElementById('loginBtn').click();}
-});
-document.getElementById('loginId').addEventListener('keydown',function(e){
-  if(e.key==='Enter'){document.getElementById('loginPw').focus();}
-});
 
 function showIframe(userId){
   document.getElementById('app').src=GAS_URL+'?page='+tab+'&userId='+userId;
